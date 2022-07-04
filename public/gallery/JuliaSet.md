@@ -235,15 +235,13 @@ sizeCanvas();
 // This is the WebGL program to color each pixel
 let fshaderText =
 `
-#define PRES 128
+#define PRES 64
 precision highp float;
 
 uniform vec2 u_shift;
 uniform vec2 u_zoom;
 uniform vec2 u_seed;
 uniform vec3 u_colors[7];
-//varying vec2 v_position;  // pixel position
-
 
 void main() {
 
@@ -288,10 +286,8 @@ let vshaderText =
 `
 attribute vec2 a_position;
 uniform vec2 u_resolution;
-varying vec2 v_position;
 
 void main() {
-  v_position = a_position;
   // convert the position from pixels to 0.0 to 1.0
   vec2 zeroToOne = a_position / u_resolution;
 
