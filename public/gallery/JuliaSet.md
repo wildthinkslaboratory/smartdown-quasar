@@ -235,20 +235,21 @@ sizeCanvas();
 // This is the WebGL program to color each pixel
 let fshaderText =
 `
+#define PRES 128
 precision highp float;
 
 uniform vec2 u_shift;
 uniform vec2 u_zoom;
 uniform vec2 u_seed;
 uniform vec3 u_colors[7];
-varying vec2 v_position;  // pixel position
+//varying vec2 v_position;  // pixel position
 
 
 void main() {
 
-  vec2 p = (v_position + u_shift) / u_zoom;
+  vec2 p = (gl_FragCoord.xy + u_shift) / u_zoom;
   int it = 0;
-  for (int i=0 ; i < 384; i++) {
+  for (int i=0 ; i < 6 * PRES; i++) {
     if (p.x * p.x + p.y * p.y > 4.0) {
       break;
     }
@@ -257,10 +258,10 @@ void main() {
   }
 
   vec4 color = vec4(u_colors[0], 1.0);
-  if (it < 384) {
-    int low = it / 64;
-    float numerator = float(it - 64*low);
-    float percent = numerator / 64.0;
+  if (it < 6*PRES) {
+    int low = it / PRES;
+    float numerator = float(it - PRES*low);
+    float percent = numerator / float(PRES);
     vec3 interp_color = vec3(0.0, 0.0, 0.0);
     if (low == 0) {
       interp_color = u_colors[0] + (u_colors[1] - u_colors[0]) * percent;
@@ -400,9 +401,30 @@ function runWebGLApp(){
   drawScene();
 }
 
+let firstseed = new Julia();
+
+firstseed.juliaseed.seed.x = -0.552;
+firstseed.juliaseed.seed.y = -0.478;
+firstseed.juliaseed.zoom = 0.8332;
+firstseed.colorseed.colors[0] = [1.0,0.0,0.0];
+firstseed.colorseed.colors[1] = [1.0,1.0,0.0];
+firstseed.colorseed.colors[2] = [0.0,1.0,0.0];
+firstseed.colorseed.colors[3] = [0.0,1.0,1.0];
+firstseed.colorseed.colors[4] = [0.0,0.0,1.0];
+firstseed.colorseed.colors[5] = [0.0,0.0,0.0];
+firstseed.colorseed.colors[6] = [1.0,1.0,1.0];
+
 function newFractal() {
-  seeds.push(new Julia());
+
+  if (seeds.length == 0) {
+    seeds.push(firstseed);
+  }
+  else{
+    seeds.push(new Julia());    
+  }
+
   currentJuliaID = seeds.length - 1;
+  console.log(seeds[currentJuliaID]);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////
@@ -588,5 +610,6 @@ this.div.addEventListener('pinchend', function(event){
 ///////////////////////////////////////////////////////////////////////////////////
 newFractal();
 runWebGLApp();
+
 
 ```
