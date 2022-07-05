@@ -397,28 +397,59 @@ function runWebGLApp(){
   drawScene();
 }
 
-let firstseed = new Julia();
+const bookmarkColors = true;
 
-firstseed.juliaseed.seed.x = -0.552;
-firstseed.juliaseed.seed.y = -0.478;
-firstseed.juliaseed.zoom = 0.8332;
-firstseed.colorseed.colors[0] = [1.0,0.0,0.0];
-firstseed.colorseed.colors[1] = [1.0,1.0,0.0];
-firstseed.colorseed.colors[2] = [0.0,1.0,0.0];
-firstseed.colorseed.colors[3] = [0.0,1.0,1.0];
-firstseed.colorseed.colors[4] = [0.0,0.0,1.0];
-firstseed.colorseed.colors[5] = [0.0,0.0,0.0];
-firstseed.colorseed.colors[6] = [1.0,1.0,1.0];
+function updateURLFromSeed(fullSeed) {
+  const url = new URL(window.location.href);
+  url.searchParams.set('zoom', fullSeed.juliaseed.zoom);
+  url.searchParams.set('seedX', fullSeed.juliaseed.seed.x);
+  url.searchParams.set('seedY', fullSeed.juliaseed.seed.y);
+  url.searchParams.set('panX', fullSeed.juliaseed.pan.x);
+  url.searchParams.set('panY', fullSeed.juliaseed.pan.y);
+
+  if (bookmarkColors) {
+    const colors = fullSeed.colorseed.colors;
+    for (let i = 0; i < colors.length; ++i) {
+      for (let j = 0; j < 3; ++j) {
+        url.searchParams.set(`c${i}${j}`, colors[i][j]);
+      }
+    }
+  }
+
+  window.history.replaceState(window.history.state, null, url);
+}
 
 function newFractal() {
+  const fullSeed = new Julia();
 
-  if (seeds.length == 0) {
-    seeds.push(firstseed);
-  }
-  else{
-    seeds.push(new Julia());    
+  const searchParams = new URLSearchParams(window.location.search);
+  const zoom = searchParams.get('zoom');
+  const seedX = searchParams.get('seedX');
+  const seedY = searchParams.get('seedY');
+  const panX = searchParams.get('panX');
+  const panY = searchParams.get('panY');
+
+  if (zoom !== null) {
+    fullSeed.juliaseed.zoom = parseFloat(zoom);
+    fullSeed.juliaseed.seed.x = parseFloat(seedX);
+    fullSeed.juliaseed.seed.y = parseFloat(seedY);
+    fullSeed.juliaseed.pan.x = parseFloat(panX);
+    fullSeed.juliaseed.pan.y = parseFloat(panY);
   }
 
+  if (bookmarkColors) {
+    const colors = fullSeed.colorseed.colors;
+    for (let i = 0; i < colors.length; ++i) {
+      for (let j = 0; j < 3; ++j) {
+        const color = searchParams.get(`c${i}${j}`);
+        if (color !== null) {
+          colors[i][j] = parseFloat(color);
+        }
+      }
+    }
+  }
+
+  seeds.push(fullSeed);
   currentJuliaID = seeds.length - 1;
   console.log(seeds[currentJuliaID]);
 }
@@ -439,10 +470,18 @@ let animationFrameId = null;
 let ticking = false;
 
 let options = {
-  "supportedGestures" : [Pan, Pinch]
+  "supportedGestures" : [Press, Pan, Pinch]
 };
 
 let pointerListener = new PointerListener(this.div, options);
+
+
+this.div.addEventListener('press', function(event){
+  const fullSeed = seeds[currentJuliaID];
+  fullSeed.colorseed = new ColorSeed();
+  updateURLFromSeed(fullSeed);
+  drawScene();
+});
 
 this.div.onmousedown = function(e) {  
   setTimeout(function(){
@@ -451,7 +490,8 @@ this.div.onmousedown = function(e) {
 }
 
 this.div.ondblclick = function(e) {
-  const seed = seeds[currentJuliaID].juliaseed;
+  const fullSeed = seeds[currentJuliaID];
+  const seed = fullSeed.juliaseed;
 
   seed.pan.x += (e.clientX - width / 2.0);
   seed.pan.y += -(e.clientY - height / 2.0);
@@ -460,40 +500,51 @@ this.div.ondblclick = function(e) {
   seed.zoom *= scale;
   seed.pan.x *= scale;
   seed.pan.y *= scale;
+  updateURLFromSeed(fullSeed);
   drawScene();
 }
 
-const debouncedZoom = (wait) => {
-  let timeoutId = null;
+const debouncedZoom = (waitTimeForDraw, waitTimeForBookmark) => {
+  let drawTimeout = null;
+  let bookmarkTimeout = null;
   let totalDeltaY = 0;
 
   return (event) => {
-    window.clearTimeout(timeoutId);
+    window.clearTimeout(drawTimeout);
+    window.clearTimeout(bookmarkTimeout);
     totalDeltaY += event.deltaY;
     event.preventDefault();
 
-    timeoutId = window.setTimeout(() => {
+    drawTimeout = window.setTimeout(() => {
       const scale = (1.0 - 0.001 * totalDeltaY);
       seeds[currentJuliaID].juliaseed.zoom *= scale;
       seeds[currentJuliaID].juliaseed.pan.x *= scale;
       seeds[currentJuliaID].juliaseed.pan.y *= scale;
       totalDeltaY = 0;
       drawScene();
-    }, wait);
+    }, waitTimeForDraw);
+
+    bookmarkTimeout = window.setTimeout(() => {
+      updateURLFromSeed(seeds[currentJuliaID]);
+    }, waitTimeForBookmark);
   };
 }
 
-this.div.onwheel = debouncedZoom(6);
+this.div.onwheel = debouncedZoom(6, 500);
 
 // End: Events related to desktop and web usage.
 
 let prev_panx = 0;
 let prev_pany = 0;
+let save_panx = 0;
+let save_pany = 0;
 this.div.addEventListener('panstart', function(event) {
   if (!pinchActive) {
     panActive = true;
     prev_panx = 0;
     prev_pany = 0;
+    save_panx = seeds[currentJuliaID].juliaseed.pan.x;
+    save_pany = seeds[currentJuliaID].juliaseed.pan.y;
   }
 });
 
@@ -510,13 +561,20 @@ this.div.addEventListener('pan', function(event){
   }
 });
 
-function onPanEnd(event){
-  panActive = false;
-}
 
-this.div.addEventListener('panend', onPanEnd);
+this.div.addEventListener('panend', function(event){
+  if (panActive) {
+    panActive = false; 
+    updateURLFromSeed(seeds[currentJuliaID]);
+  }
+});
 
 this.div.addEventListener('swipeleft', function(event){
+  if (panActive) {
+    seeds[currentJuliaID].juliaseed.pan.x = save_panx;
+    seeds[currentJuliaID].juliaseed.pan.y = save_pany;
+    panActive = false;
+  }
   if (currentJuliaID < (seeds.length - 1) ) { 
     currentJuliaID++; 
   }
@@ -525,17 +583,23 @@ this.div.addEventListener('swipeleft', function(event){
     seeds.push(new Julia());
     currentJuliaID = seeds.length -1;    
   }
+
+  updateURLFromSeed(seeds[currentJuliaID]);
   drawScene();
-  onPanEnd(event);
 });
 
 
 this.div.addEventListener('swiperight', function(event){
+  if (panActive) {
+    seeds[currentJuliaID].juliaseed.pan.x = save_panx;
+    seeds[currentJuliaID].juliaseed.pan.y = save_pany;
+    panActive = false;
+  }
   if (currentJuliaID > 0 ) { 
     currentJuliaID--; 
+    updateURLFromSeed(seeds[currentJuliaID]);
     drawScene();
   }
-  onPanEnd(event);
 });
 
 
@@ -564,6 +628,7 @@ this.div.addEventListener('pinch', function(event){
 });
 
 this.div.addEventListener('pinchend', function(event){
+  updateURLFromSeed(seeds[currentJuliaID]);
   pinchActive = false; 
 });
 
