@@ -11,6 +11,13 @@ SQ.setToolbarFade(true);
 
 // our favorite julia seeds
 let juliaSeeds = [ 
+[-1.386172344689379, 0.010095190380761565],
+[-1.1933867735470942, -0.1670591182364729],
+[-1.005811623246493, 0.2758266533066134],
+[-0.7088176352705413, -0.2504258517034068],
+[-0.7296593186372746, 0.1455661322645292],
+[-0.7348697394789581, 0.3644038076152305],
+[0.27595190380761503,-0.00032565130260509],
 [-0.391,-0.587], 
 [-0.4,-0.59], 
 [-0.54, 0.54], 
@@ -359,12 +366,11 @@ void main() {
 
   if (u_super != 1) {
     vec2 p = (gl_FragCoord.xy) * u_scale.x + vec2(u_shiftx.x, u_shifty.x);
-    vec2 seed = vec2(seedx.x + seedx.y, seedy.x + seedy.y);
     for (int i=0 ; i < 6 * P_RES; i++) {
       if (p.x * p.x + p.y * p.y > 4.0) {
         break;
       }
-      p = seed + vec2(p.x * p.x - p.y * p.y, 2.0 * p.x * p.y);
+      p = u_seed + vec2(p.x * p.x - p.y * p.y, 2.0 * p.x * p.y);
       it = i;
     }
   }
@@ -532,7 +538,7 @@ function drawScene(){
   let [scale32, scaleError] = [1 / zoom, 0.0];
 
   let superzoom = 0; // default is no superzoom
-  if (zoom > 0 && Math.log2(zoom) > 18) { 
+  if (zoom > 0 && Math.log2(zoom) > 17) { 
     superzoom = 1; 
     [shiftx32, shiftxError] = split((-width/2 + js.pan.x) / zoom);
     [shifty32, shiftyError] = split((-height/2 + js.pan.y) / zoom);
