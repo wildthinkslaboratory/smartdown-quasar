@@ -42,5 +42,9 @@
   {
     "title": "JuliaSet",
     "description": "Randomly generated Julia Set fractals"
-  }
+  },
+  {
+    "title": "SuperJulia",
+    "description": "Julia Set fractals with super zoom"
+  }  
 ]
